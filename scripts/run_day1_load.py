@@ -2,7 +2,7 @@ from pathlib import Path
 import sys 
 import json 
 from datetime import datetime, timezone
-
+import pandas as pd
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,6 +28,3 @@ out_orders = paths.processed / "orders.parquet"
 out_users = paths.processed / "users.parquet"
 write_parquet(orders, out_orders)
 write_parquet(users, out_users)
-
-
-
