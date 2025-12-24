@@ -86,6 +86,5 @@ status_mapping = {
 orders["status_clean"] = apply_mapping(normalize_text(orders["status"]), status_mapping)
 
 orders = add_missing_flags(orders, ["amount", "quantity"])
-
 write_parquet(orders, paths.processed / "orders_clean.parquet")
 write_parquet(users, paths.processed / "users.parquet")
