@@ -28,3 +28,13 @@ out_orders = paths.processed / "orders.parquet"
 out_users = paths.processed / "users.parquet"
 write_parquet(orders, out_orders)
 write_parquet(users, out_users)
+
+
+meta = {  # Optional but useful: minimal run metadata for reproducibility
+    "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+    "rows": {"orders": int(len(orders)), "users": int(len(users))},
+    "outputs": {"orders": str(out_orders), "users": str(out_users)},
+}
+
+meta_path = paths.processed / "_run_meta.json"
+meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")

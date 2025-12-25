@@ -1,10 +1,7 @@
 from pathlib import Path
 import sys
-import pandas as pd 
+import pandas as pd
 import re
-
-
-
 
 ROOT = Path(__file__).resolve().parents[1]
 src = ROOT / "src"
@@ -13,45 +10,17 @@ if str(src) not in sys.path:
 
 from bootcamp_data.config import make_paths
 from bootcamp_data.io import read_orders_csv, read_users_csv, write_parquet
-from bootcamp_data.transforms import enforce_schema
-
-
-def require_columns(df: pd.DataFrame, cols: list[str]) -> None:
-    missing = [c for c in cols if c not in df.columns]
-    assert not missing, f"Missing columns: {missing}"
-
-def assert_non_empty(df: pd.DataFrame, name: str = "df") -> None:
-    assert len(df) > 0, f"{name} has 0 rows"
-
-def missingness_report(df: pd.DataFrame) -> pd.DataFrame:
-    return (
-        df.isna().sum()
-        .rename("n_missing")
-        .to_frame()
-        .assign(p_missing=lambda t: t["n_missing"] / len(df))
-        .sort_values("p_missing", ascending=False)
-    )
-
-def add_missing_flags(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
-    out = df.copy()
-    for c in cols:
-        out[f"{c}__isna"] = out[c].isna()
-    return out
-
-_ws = re.compile(r"\s+")
-
-def normalize_text(s: pd.Series) -> pd.Series:
-    return (
-        s.astype("string")
-        .str.strip()
-        .str.casefold()
-        .str.replace(_ws, " ", regex=True)
-    )
-
-def apply_mapping(s: pd.Series, mapping: dict[str, str]) -> pd.Series:
-    return s.map(lambda x: mapping.get(x, x))
-
-
+from bootcamp_data.transforms import (
+    enforce_schema,
+    missingness_report,
+    add_missing_flags,
+    normalize_text,
+    apply_mapping,
+)
+from bootcamp_data.quality import (
+    require_columns,
+    assert_non_empty,
+)
 
 paths = make_paths(ROOT)
 
@@ -65,26 +34,20 @@ assert_non_empty(users, "users")
 
 orders = enforce_schema(orders_raw)
 
-
 rep = missingness_report(orders)
-
-
-reports_dir = ROOT / "data" / "reports"
+reports_dir = ROOT / "reports"
 reports_dir.mkdir(parents=True, exist_ok=True)
-rep.to_csv(reports_dir / "missingness_orders.csv", index=True)
+rep_path = reports_dir / "missingness_orders.csv"
+rep.to_csv(rep_path, index=True)
 
-status_mapping = {
-    "completed": "completed",
-    "complete": "completed",
-    "done": "completed",
-    "pending": "pending",
-    "in progress": "in_progress",
-    "processing": "in_progress",
-    "cancelled": "cancelled",
-}
+status_norm = normalize_text(orders["status"])
+mapping = {"paid": "paid", "refund": "refund", "refunded": "refund"}
+status_clean = apply_mapping(status_norm, mapping)
 
-orders["status_clean"] = apply_mapping(normalize_text(orders["status"]), status_mapping)
+orders_clean = (
+    orders.assign(status_clean=status_clean)
+    .pipe(add_missing_flags, cols=["amount", "quantity"])
+)
 
-orders = add_missing_flags(orders, ["amount", "quantity"])
-write_parquet(orders, paths.processed / "orders_clean.parquet")
+write_parquet(orders_clean, paths.processed / "orders_clean.parquet")
 write_parquet(users, paths.processed / "users.parquet")

@@ -18,3 +18,10 @@ def make_paths(root: Path) -> Paths:
         processed=data / "processed",
         external=data / "external"
     )
+
+
+ROOT = Path.cwd()   
+PROCESSED = ROOT / "data/processed"
+ANALYTICS_FILE = ROOT / "data/processed" / "analytics_table.parquet"
+
+print(ANALYTICS_FILE)
